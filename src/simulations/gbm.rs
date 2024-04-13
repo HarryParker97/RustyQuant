@@ -3,7 +3,9 @@ use super::random_number_generator::standard_normal_generator;
 
 
 pub trait Simulation {
+    
     fn simulate(&self) -> Vec<f32>;
+
 }
 
 
@@ -15,9 +17,9 @@ pub struct GBMMonteCarlo {
     pub n_sims: u32,
 }
 
-impl GBMMonteCarlo{
+impl Simulation for GBMMonteCarlo{
 
-    pub fn simulate(&self) -> Vec<f32> {
+    fn simulate(&self) -> Vec<f32> {
 
         let st_norm_vec: Vec<f32> = standard_normal_generator(self.n_sims);
 

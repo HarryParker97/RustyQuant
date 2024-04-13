@@ -1,5 +1,6 @@
 
 use super::option_type::{OptionType, SimulationMethod};
+use crate::simulations::gbm::Simulation;
 
 
 
