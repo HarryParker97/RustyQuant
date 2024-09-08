@@ -1,13 +1,13 @@
 
 use super::option_type::{CalculationType, OptionType, AnalyticalMethod, SimulationMethod};
-use crate::simulations::gbm::Simulation;
 use crate::analytical::black_scholes::AnalyticalTrait;
+use crate::simulations::gbm::SimulationTrait;
 
 pub trait OptionPricingTrait {
 
-    fn calculate(&self) -> f32;
-
-    fn analytical_pricing(&self) -> f32;
+    fn calculate(&self) -> Result<f32, String>;
+    fn analytical_pricing(&self) -> Result<f32, String>;
+    fn simulation_pricing(&self) -> Result<f32, String>;
 }
 
 
@@ -23,21 +23,17 @@ pub struct VanillaOptionPricing {
 
 impl OptionPricingTrait for VanillaOptionPricing {
 
-    fn calculate(
-        &self, 
-    ) -> f32 {
-
-        let option_price: f32 = match &self.calculation_type {
-            CalculationType::AnalyticalMethod(anal) => self.analytical_pricing(),
-            CalculationType::SimulationMethod(sim) => 0.99
-        };
-
-        option_price
+    fn calculate(&self) -> Result<f32, String> {
+        
+        match &self.calculation_type {
+            CalculationType::AnalyticalMethod(_) => self.analytical_pricing(),
+            CalculationType::SimulationMethod(_) => self.simulation_pricing(),
+        }
     }
 
     fn analytical_pricing(
         &self,
-    ) -> f32 {
+    ) -> Result<f32, String> {
         
         if let CalculationType::AnalyticalMethod(anal) = &self.calculation_type {
             match anal {
@@ -48,12 +44,41 @@ impl OptionPricingTrait for VanillaOptionPricing {
                         self.strike,
                         self.dt,
                     );
-                    return price 
+                    return Ok(price) 
                 }
             }
         }
-        0.0
+        Err("Invalid calculation type for analytical pricing.".to_string())
     }
+
+    fn simulation_pricing(&self) -> Result<f32, String> {
+
+        let simulations: Vec<f32> = if let CalculationType::SimulationMethod(sim) = &self.calculation_type {
+            match sim {
+                SimulationMethod::GBMMonteCarlo(gbm) => {
+                    gbm.simulate(self.spot, self.dt)
+                }
+            }
+        } else {
+            return Err("Invalid calculation type for analytical pricing.".to_string())
+        };
+
+
+        let pay_off_vec: Vec<f32> = match self.option_type {
+            OptionType::Call => simulations.iter().map(
+                |&st| if st - self.strike > 0.0 { st - self.strike } else { 0.0 }
+            ).collect(),
+    
+            OptionType::Put => simulations.iter().map(
+                |&st| if self.strike - st > 0.0 { self.strike - st } else { 0.0 }
+            ).collect(),
+        };
+        
+        Ok(pay_off_vec.iter().sum::<f32>() / ( pay_off_vec.len() as f32 ))
+    }
+        
+}
+
         
     //     let rate_sim_vec: Vec<f32> = match &self.simulation_method{
     //         SimulationMethod::GBMMonteCarlo(gbm) => gbm.simulate(),
@@ -73,4 +98,3 @@ impl OptionPricingTrait for VanillaOptionPricing {
     //     pay_off_vec.iter().sum::<f32>() / ( pay_off_vec.len() as f32 )
 
     // }
-}
