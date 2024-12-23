@@ -53,29 +53,41 @@ impl OptionPricingTrait for VanillaOptionPricing {
 
     fn simulation_pricing(&self) -> Result<f32, String> {
 
-        let simulations: Vec<f32> = if let CalculationType::SimulationMethod(sim) = &self.calculation_type {
+        let (simulations, rf): (Vec<Vec<f32>>, f32) = if let CalculationType::SimulationMethod(sim) = &self.calculation_type {
             match sim {
                 SimulationMethod::GBMMonteCarlo(gbm) => {
-                    gbm.simulate(self.spot, self.dt)
+                    let rf: f32 = gbm.mu; // Assuming `mu` here is the risk-free rate
+    
+                    (gbm.simulate(self.spot, self.dt), rf)
+                }
+                _ => {
+                    return Err("Invalid simulation method.".to_string());
                 }
             }
         } else {
-            return Err("Invalid simulation method.".to_string())
+            return Err("Invalid calculation type.".to_string());
         };
-
-
-        let pay_off_vec: Vec<f32> = match self.option_type {
-            OptionType::Call => simulations.iter().map(
-                |&st| if st - self.strike > 0.0 { st - self.strike } else { 0.0 }
-            ).collect(),
     
-            OptionType::Put => simulations.iter().map(
-                |&st| if self.strike - st > 0.0 { self.strike - st } else { 0.0 }
-            ).collect(),
-        };
-        
-        Ok(pay_off_vec.iter().sum::<f32>() / ( pay_off_vec.len() as f32 ))
-    }
+        if simulations.is_empty() {
+            return Err("Simulation returned no results.".to_string());
+        }
+    
+        let mut pay_off_vec: Vec<f32> = Vec::new();
+    
+        for simulation in simulations.iter() {
+            let final_price = simulation.last().unwrap();
+    
+            let payoff = match self.option_type {
+                OptionType::Call => f32::max(0.0, final_price - self.strike),
+                OptionType::Put => f32::max(0.0, self.strike - final_price),
+            };
+    
+            pay_off_vec.push(payoff);
+        }
 
+        let expected_payoff: f32 = (pay_off_vec.iter().sum::<f32>() / pay_off_vec.len() as f32) * (-rf * self.dt).exp();
+    
+        Ok(expected_payoff)
+    }
 
 }

@@ -1,10 +1,10 @@
 use rand::prelude::*;
 use rand_distr::Normal;
 
-pub fn standard_normal_generator(n: u32) -> Vec<f32> {
+pub fn standard_normal_generator(n: u32, mean: f32, std_dev: f32) -> Vec<f32> {
 
     let mut rng = thread_rng(); // Initialize the random number generator
-    let normal: Normal<f32> = Normal::new(0.0, 1.0).unwrap(); // Create a normal distribution
+    let normal: Normal<f32> = Normal::new(mean, std_dev).unwrap(); // Create a normal distribution
 
     let mut random_numbers_vec = Vec::with_capacity(n as usize);
     for _ in 0..n {
