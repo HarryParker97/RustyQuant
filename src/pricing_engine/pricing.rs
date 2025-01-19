@@ -1,4 +1,3 @@
-
 use super::option_type::{CalculationType, OptionType, AnalyticalMethod, SimulationMethod};
 use crate::analytical::black_scholes::AnalyticalTrait;
 use crate::simulations::gbm::SimulationTrait;
@@ -53,15 +52,12 @@ impl OptionPricingTrait for VanillaOptionPricing {
 
     fn simulation_pricing(&self) -> Result<f32, String> {
 
-        let (simulations, rf): (Vec<Vec<f32>>, f32) = if let CalculationType::SimulationMethod(sim) = &self.calculation_type {
+        let (simulations, rf): (Vec<f32>, f32) = if let CalculationType::SimulationMethod(sim) = &self.calculation_type {
             match sim {
                 SimulationMethod::GBMMonteCarlo(gbm) => {
-                    let rf: f32 = gbm.mu; // Assuming `mu` here is the risk-free rate
+                    let rf: f32 = gbm.mu;
     
                     (gbm.simulate(self.spot, self.dt), rf)
-                }
-                _ => {
-                    return Err("Invalid simulation method.".to_string());
                 }
             }
         } else {
@@ -75,7 +71,7 @@ impl OptionPricingTrait for VanillaOptionPricing {
         let mut pay_off_vec: Vec<f32> = Vec::new();
     
         for simulation in simulations.iter() {
-            let final_price = simulation.last().unwrap();
+            let final_price = simulation;
     
             let payoff = match self.option_type {
                 OptionType::Call => f32::max(0.0, final_price - self.strike),
@@ -85,9 +81,8 @@ impl OptionPricingTrait for VanillaOptionPricing {
             pay_off_vec.push(payoff);
         }
 
-        let expected_payoff: f32 = (pay_off_vec.iter().sum::<f32>() / pay_off_vec.len() as f32) * (-rf * self.dt).exp();
+        let mtm: f32 = (pay_off_vec.iter().sum::<f32>() / pay_off_vec.len() as f32) * (-rf * self.dt).exp();
     
-        Ok(expected_payoff)
+        Ok(mtm)
     }
-
 }
